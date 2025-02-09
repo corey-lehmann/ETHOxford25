@@ -1,18 +1,7 @@
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import logging
 import sys
-
-# Load environment variables
-load_dotenv()
-
-####VALUES WE NEED
-API_KEY: str = os.getenv("API_KEY")
-MODEL: str = os.getenv("MODEL")
-ENDPOINT: str = os.getenv("ENDPOINT")
-REGION: str = os.getenv("REGION")
-DEPLOYMENT = MODEL
-
 import numpy as np
 import json
 import requests
@@ -23,9 +12,15 @@ from tqdm.notebook import tqdm
 import ast
 import re
 import time
+from openai import AzureOpenAI
 import streamlit as st
 
-from openai import AzureOpenAI
+####VALUES WE NEED
+API_KEY: str = st.secrets.get("API_KEY", os.getenv("API_KEY"))
+MODEL: str = st.secrets.get("MODEL", os.getenv("MODEL"))
+ENDPOINT: str = st.secrets.get("ENDPOINT", os.getenv("ENDPOINT"))
+REGION: str = st.secrets.get("REGION", os.getenv("REGION"))
+DEPLOYMENT = MODEL
 
 # Configure logging
 logging.basicConfig(
