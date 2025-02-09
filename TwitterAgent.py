@@ -1,5 +1,7 @@
 import os
 from dotenv import load_dotenv
+import logging
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -24,6 +26,15 @@ import time
 import streamlit as st
 
 from openai import AzureOpenAI
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 @lru_cache(maxsize=512)
 def get_tweets(query, sort, start_date, end_date):
@@ -278,131 +289,145 @@ def gpt_safe_split(text, item):
 
 # Add Streamlit interface
 def main():    
-    # Sidebar for navigation
-    page = st.sidebar.selectbox("Select a page", ["Home", "Daily Perspective", "Hot Tweets", "Influencers", "The Master Debater"])
-    
-    if page == "Home":
-        st.write("Welcome to the OKC Twitter Agent!")
-        st.write("This app fetches and analyzes tweets related to cryptocurrency.")
+    try:
+        # Sidebar for navigation
+        page = st.sidebar.selectbox("Select a page", ["Home", "Daily Perspective", "Hot Tweets", "Influencers", "The Master Debater"])
+        
+        logging.info(f"Selected page: {page}")
+        
+        if page == "Home":
+            st.write("Welcome to the OKC Twitter Agent!")
+            st.write("This app fetches and analyzes tweets related to cryptocurrency.")
 
-    elif page == "Daily Perspective":
-        st.title("Daily Perspective")
-        user_input = st.text_input("What viewpoint would you like to query?", "")
-        if st.button("View State"):
-            context = "The user would like to search twitter to find tweets related to this topic. Provide 2 keywords to search for. Make them as specific as possible. Separate them with OR. Do not respond with anything else."
-            query = default_query(context, user_input)
-            tweets_list = get_tweets(query, "Top", (datetime.now() + timedelta(days=-1)).strftime("%Y-%m-%d"), (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d"))
-            tweets_df = pd.DataFrame(tweets_list)
-            # print(tweets_df.columns)
-            # print(tweets_df.iloc[0])
-            tweets_df = analyse_tweets_df(tweets_df)
-            tweets_df = tweets_df.iloc[:10]
-            print(f"Tweets fetched: {len(tweets_df)}")
-            # Classify whether each tweet is FOR or AGAINST the query.
-            output_list = []
-            for tweet_text in tweets_df['text']:
-                context = f"""
-                Your job is to classify whether the tweet below is FOR, NEUTRAL, or AGAINST regarding this viewpoint. 
-                Respond only with either 0 for FOR, 1 for NEUTRAL, or 2 for AGAINST.
-                The viewpoint is: {user_input}
-                """
-                output = default_query(context, tweet_text)
-                output = output.strip()
-                if output in ['0', '1', '2']:
-                    output_list.append(int(output))
-                else:
-                    st.warning("Invalid output received. Expected 0, 1, or 2.")
-                    output_list.append(1)  # Append None or handle as needed
-            tweets_df['viewpoint'] = output_list
+        elif page == "Daily Perspective":
+            st.title("Daily Perspective")
+            user_input = st.text_input("What viewpoint would you like to query?", "")
+            if st.button("View State"):
+                context = "The user would like to search twitter to find tweets related to this topic. Provide 2 keywords to search for. Make them as specific as possible. Separate them with OR. Do not respond with anything else."
+                query = default_query(context, user_input)
+                tweets_list = get_tweets(query, "Top", (datetime.now() + timedelta(days=-1)).strftime("%Y-%m-%d"), (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d"))
+                tweets_df = pd.DataFrame(tweets_list)
+                # print(tweets_df.columns)
+                # print(tweets_df.iloc[0])
+                tweets_df = analyse_tweets_df(tweets_df)
+                tweets_df = tweets_df.iloc[:10]
+                print(f"Tweets fetched: {len(tweets_df)}")
+                # Classify whether each tweet is FOR or AGAINST the query.
+                output_list = []
+                for tweet_text in tweets_df['text']:
+                    context = f"""
+                    Your job is to classify whether the tweet below is FOR, NEUTRAL, or AGAINST regarding this viewpoint. 
+                    Respond only with either 0 for FOR, 1 for NEUTRAL, or 2 for AGAINST.
+                    The viewpoint is: {user_input}
+                    """
+                    output = default_query(context, tweet_text)
+                    output = output.strip()
+                    if output in ['0', '1', '2']:
+                        output_list.append(int(output))
+                    else:
+                        st.warning("Invalid output received. Expected 0, 1, or 2.")
+                        output_list.append(1)  # Append None or handle as needed
+                tweets_df['viewpoint'] = output_list
 
-            total_for = 0
-            total_against = 0
-            for i, row in tweets_df[tweets_df['viewpoint'] == 0].iterrows():
-                total_for += row['like_count'] + row['reply_count']
-            for i, row in tweets_df[tweets_df['viewpoint'] == 2].iterrows():
-                total_against += row['like_count'] + row['reply_count']
-            percentage = total_for/(total_for+total_against)*100
-
-            st.markdown(f"<div style='width: 100%; background-color: red; border-radius: 5px;'>"
-                         f"<div style='width: {percentage}%; background-color: green; height: 20px; border-radius: 5px;'></div>"
-                         f"</div>", unsafe_allow_html=True)
-
-            st.write(f"Overall Perspective Today: {percentage:.2f}% Positive")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write(f"FOR")
-                st.markdown("---")  # Add a horizontal line
+                total_for = 0
+                total_against = 0
                 for i, row in tweets_df[tweets_df['viewpoint'] == 0].iterrows():
-                    col_img, col_text = st.columns([1, 6])
-                    with col_img:
-                        print(row['user'])
-                        profile_img = row['user'].get('profile_image_url', '')
-                        print(profile_img)
-                        if profile_img:
-                            st.image(profile_img, width=40)
-                        else:
-                            st.image("https://via.placeholder.com/40", width=40)
-                    with col_text:
-                        st.write(f"{row['user_name']}")
-                        st.write(f"{row['user_username']}")
-                    st.write(row['text'])
-                    st.write(f"Likes: {row['like_count']},  Replies: {row['reply_count']}")
-
-                    st.markdown("---")  # Add a horizontal line
-
-
-
-            with col2:
-                st.write(f"AGAINST")
-                st.markdown("---")  # Add a horizontal line
+                    total_for += row['like_count'] + row['reply_count']
                 for i, row in tweets_df[tweets_df['viewpoint'] == 2].iterrows():
-                    col_img, col_text = st.columns([1, 6])
-                    with col_img:
-                        profile_img = row['user'].get('profile_image_url', '')
-                        if profile_img:
-                            st.image(profile_img, width=40)
-                        else:
-                            st.image("https://via.placeholder.com/40", width=40)
-                    with col_text:
-                        st.write(f"{row['user_name']}")
-                    st.write(row['text'])
-                    st.write(f"Likes: {row['like_count']},  Replies: {row['reply_count']}")
+                    total_against += row['like_count'] + row['reply_count']
+                percentage = total_for/(total_for+total_against)*100
 
+                st.markdown(f"<div style='width: 100%; background-color: red; border-radius: 5px;'>"
+                             f"<div style='width: {percentage}%; background-color: green; height: 20px; border-radius: 5px;'></div>"
+                             f"</div>", unsafe_allow_html=True)
+
+                st.write(f"Overall Perspective Today: {percentage:.2f}% Positive")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"FOR")
                     st.markdown("---")  # Add a horizontal line
+                    for i, row in tweets_df[tweets_df['viewpoint'] == 0].iterrows():
+                        col_img, col_text = st.columns([1, 6])
+                        with col_img:
+                            print(row['user'])
+                            profile_img = row['user'].get('profile_image_url', '')
+                            print(profile_img)
+                            if profile_img:
+                                st.image(profile_img, width=40)
+                            else:
+                                st.image("https://via.placeholder.com/40", width=40)
+                        with col_text:
+                            st.write(f"{row['user_name']}")
+                            st.write(f"{row['user_username']}")
+                        st.write(row['text'])
+                        st.write(f"Likes: {row['like_count']},  Replies: {row['reply_count']}")
+
+                        st.markdown("---")  # Add a horizontal line
 
 
 
-    elif page == "Hot Tweets":
-        st.title("Hot Tweets")
-        st.write("Enter a query to fetch tweets related to cryptocurrency.")
-        query = st.text_input("Query", "Bitcoin")
-        if st.button("Fetch Tweets"):
-            st.write("Top Tweets:")
-            st.dataframe(top_tweets_df)
-    elif page == "Influencers":
-        st.title("Influencers")
-        st.write("Enter a query to fetch influencers related to cryptocurrency.")
-        query = st.text_input("Query", "Bitcoin")
-        if st.button("Fetch Influencers"):
-            st.write("Top Influencers:")
-            st.dataframe(user_df)
-    elif page == "The Master Debater":
-        st.title("The Master Debater")
-        st.write("Set a bot up to weigh in on a crypto topic")
-        query = st.selectbox("Choose a target category", ["Topic", "Influencer"])
-        if query == "Topic":
-            topic = st.text_input("Enter a topic")
-            if st.button("Activate Debate Bot"):
-                st.write("Debate bot activated successfully!")
-                st.write("The bot will now send 10 tweets about this Topic over the next 24 hours..")
-        elif query == "Influencer":
-            influencer = st.text_input("Enter an influencer")
-            if st.button("Activate Debate Bot"):
-                st.write("Debate bot activated successfully!")
-                st.write("The bot will now send 10 tweets about this Influencer over the next 24 hours..")
+                with col2:
+                    st.write(f"AGAINST")
+                    st.markdown("---")  # Add a horizontal line
+                    for i, row in tweets_df[tweets_df['viewpoint'] == 2].iterrows():
+                        col_img, col_text = st.columns([1, 6])
+                        with col_img:
+                            profile_img = row['user'].get('profile_image_url', '')
+                            if profile_img:
+                                st.image(profile_img, width=40)
+                            else:
+                                st.image("https://via.placeholder.com/40", width=40)
+                        with col_text:
+                            st.write(f"{row['user_name']}")
+                        st.write(row['text'])
+                        st.write(f"Likes: {row['like_count']},  Replies: {row['reply_count']}")
+
+                        st.markdown("---")  # Add a horizontal line
+
+
+
+        elif page == "Hot Tweets":
+            st.title("Hot Tweets")
+            st.write("Enter a query to fetch tweets related to cryptocurrency.")
+            query = st.text_input("Query", "Bitcoin")
+            if st.button("Fetch Tweets"):
+                st.write("Top Tweets:")
+                st.dataframe(top_tweets_df)
+        elif page == "Influencers":
+            st.title("Influencers")
+            st.write("Enter a query to fetch influencers related to cryptocurrency.")
+            query = st.text_input("Query", "Bitcoin")
+            if st.button("Fetch Influencers"):
+                st.write("Top Influencers:")
+                st.dataframe(user_df)
+        elif page == "The Master Debater":
+            st.title("The Master Debater")
+            st.write("Set a bot up to weigh in on a crypto topic")
+            query = st.selectbox("Choose a target category", ["Topic", "Influencer"])
+            if query == "Topic":
+                topic = st.text_input("Enter a topic")
+                if st.button("Activate Debate Bot"):
+                    st.write("Debate bot activated successfully!")
+                    st.write("The bot will now send 10 tweets about this Topic over the next 24 hours..")
+            elif query == "Influencer":
+                influencer = st.text_input("Enter an influencer")
+                if st.button("Activate Debate Bot"):
+                    st.write("Debate bot activated successfully!")
+                    st.write("The bot will now send 10 tweets about this Influencer over the next 24 hours..")
+
+    except Exception as e:
+        logging.error(f"Error in main function: {str(e)}")
+        st.error(f"An error occurred: {str(e)}")
+        # Print full traceback
+        import traceback
+        logging.error(traceback.format_exc())
 
 # Run the Streamlit app
 if __name__ == "__main__":
-
-    main()
+    try:
+        logging.info("Starting application")
+        main()
+    except Exception as e:
+        logging.error(f"Application failed to start: {str(e)}")
+        logging.error(traceback.format_exc())
