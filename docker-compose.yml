@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  twitter-analyzer:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - API_KEY=${API_KEY}
+      - MODEL=${MODEL}
+      - ENDPOINT=${ENDPOINT}
+      - REGION=${REGION}
+      - AUTH=${AUTH}
+      - TWITTER_AUTH=${TWITTER_AUTH}
+    volumes:
+      - .:/app 
