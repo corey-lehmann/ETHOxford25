@@ -121,6 +121,7 @@ def analyse_tweets_df(tweets_df):
     df = df.drop_duplicates(subset='text')
     df.loc[:, 'user_name'] = df['user'].apply(lambda x: x.get('name', '') if isinstance(x, dict) else None)
     df.loc[:, 'user_username'] = df['user'].apply(lambda x: x.get('username', '') if isinstance(x, dict) else None)
+    df.loc[:, 'profile_image_url'] = df['user'].apply(lambda x: x.get('profile_image_url', '') if isinstance(x, dict) else None)
     num_columns = ['bookmark_count', 'reply_count', 'retweet_count', 'like_count', 'quote_count', 'user_id']
     df[num_columns] = df[num_columns].apply(pd.to_numeric, errors='coerce').fillna(0)
     for col in num_columns:
@@ -128,12 +129,11 @@ def analyse_tweets_df(tweets_df):
     df['reply_like_ratio'] = df['reply_count'] / df['like_count']
     df['bookmark_like_ratio'] = df['bookmark_count'] / df['like_count']
     df['retweet_like_ratio'] = df['retweet_count'] / df['like_count']
-    df['like_follower_ratio'] = df['like_count'] / df['follower_count']
     return df
 
-# top_tweets_df = get_top_tweets_df()
-# top_tweets_df = analyse_tweets_df(top_tweets_df)
-# top_tweets_df.to_csv('top_tweets.csv', index=False)
+top_tweets_df = get_top_tweets_df()
+top_tweets_df = analyse_tweets_df(top_tweets_df)
+top_tweets_df.to_csv('top_tweets.csv', index=False)
 
 def get_top_tweeters_df(tweets_df):
     # Generate top tweeters list
@@ -318,9 +318,7 @@ def main():
                     for i, row in tweets_df[tweets_df['viewpoint'] == 0].iterrows():
                         col_img, col_text = st.columns([1, 6])
                         with col_img:
-                            print(row['user'])
-                            profile_img = row['user'].get('profile_image_url', '')
-                            print(profile_img)
+                            profile_img = row['profile_image_url']
                             if profile_img:
                                 st.image(profile_img, width=40)
                             else:
@@ -351,17 +349,59 @@ def main():
                         st.markdown("---")  # Add a horizontal line
 
         elif page == "Hot Tweets":
+            top_tweets_df = pd.read_csv('merged_tweets_df.csv')
             st.title("Hot Tweets")
-            st.write("Enter a query to fetch tweets related to cryptocurrency.")
-            query = st.text_input("Query", "Bitcoin")
-            if st.button("Fetch Tweets"):
-                st.write("Top Tweets:")
-                st.dataframe(top_tweets_df)
+            st.write("Top Tweets from this month:")
+            for i, row in top_tweets_df.iterrows():
+                if i > 20:
+                    break
+                st.markdown("---")
+                col_1, col_2, col_3 = st.columns([1, 1, 6])
+                with col_1:
+                    st.write(f"#{i}")
+                with col_2:
+                    profile_img = row['profile_image_url']
+                    if profile_img:
+                        st.image(profile_img, width=40)
+                    else:
+
+                        st.image("https://via.placeholder.com/40", width=40)
+                with col_3:
+                    st.write(row['user_name'])
+                st.write(row['text'])
+                st.write(f"Likes: {row['like_count']},  Replies: {row['reply_count']}")
+                st.write(f"Crypto Relevance: {row['crypto_relevance']}")
+                st.write(f"Technical Knowledge: {row['technical_knowledge']}")
+                st.write(f"Cryptocurrency Sentiments: {row['crypto_sentiments']}")
+                    
+
+
+
         elif page == "Influencers":
             user_df = pd.read_csv('top_tweeters.csv')
             st.title("Influencers")
-            st.write("Top Influencers:")
-            st.dataframe(user_df.sort_values(by='top_tweet_count', ascending=False)[['user_name', 'top_tweet_count']])
+            st.write("Top Influencers from this month:")
+            user_df = user_df.sort_values(by='influence_metric', ascending=False)
+            user_df.reset_index(drop=True, inplace=True)
+            for j, row in user_df.iterrows():
+                st.markdown("---")
+                col_1, col_2, col_3 = st.columns([1, 1, 6])
+
+                with col_1:
+                    st.write(f"#{j}")
+                with col_2:
+                    profile_img = row['profile_image_url']
+                    if profile_img:
+                        st.image(profile_img, width=40)
+                    else:
+                        st.image("https://via.placeholder.com/40", width=40)
+                with col_3:
+                    st.write(row['name'])
+                    st.write(f"Followers: {row['followers_count']}, Top Tweets: {row['top_tweet_count']}, Influence: {row['influence_metric']}")
+                    
+
+                
+            
         elif page == "The Master Debater":
             st.title("The Master Debater")
             st.write("Set a bot up to weigh in on a crypto topic")
