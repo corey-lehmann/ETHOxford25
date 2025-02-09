@@ -20,6 +20,7 @@ API_KEY: str = st.secrets.get("API_KEY", os.getenv("API_KEY"))
 MODEL: str = st.secrets.get("MODEL", os.getenv("MODEL"))
 ENDPOINT: str = st.secrets.get("ENDPOINT", os.getenv("ENDPOINT"))
 REGION: str = st.secrets.get("REGION", os.getenv("REGION"))
+AUTH: str = st.secrets.get("AUTH", os.getenv("AUTH"))
 DEPLOYMENT = MODEL
 
 # Configure logging
@@ -235,58 +236,31 @@ def gpt_safe_split(text, item):
 
 # test_df.to_csv('test_df.csv', index=False)
 
-# def create_tweet_image(tweet_dict):
-#     # Load the user's icon
-#     user_icon_url = tweet_dict.get('user', {}).get('profile_image_url', '')
-#     response = requests.get(user_icon_url)
-#     user_icon = Image.open(BytesIO(response.content)).resize((50, 50))
+def upload_tweet(tweet_text):
+    url = "https://api.twitter.com/2/tweets"
 
+    payload = json.dumps({
+    "text": f"{tweet_text}"
+    })
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': AUTH,
+    'Cookie': 'guest_id=v1%3A173905191714944479'
+    }
 
-#     # Create a new image with rounded edges
-#     width, height = 400, 200
-#     image = Image.new('RGB', (width, height), color='white')
-#     draw = ImageDraw.Draw(image)
+    response = requests.request("POST", url, headers=headers, data=payload)
 
-#     # Draw rounded rectangle
-#     radius = 20
-#     draw.rounded_rectangle([0, 0, width, height], radius=radius, fill='lightgray')
+    print(response.text)
+    return
 
-#     # Draw user icon
-#     image.paste(user_icon, (10, 10))
-
-#     # Draw tweet body
-#     tweet_body = tweet_dict.get('text', 'No content')
-#     font = ImageFont.load_default()
-#     draw.text((70, 10), tweet_body, fill='black', font=font)
-
-
-#     # Draw likes and replies
-#     likes = tweet_dict.get('like_count', 0)
-#     replies = tweet_dict.get('reply_count', 0)
-#     draw.text((10, 160), f"Likes: {likes}  Replies: {replies}", fill='black', font=font)
-
-
-#     # Save or display the image
-#     image_path = f'tweet_{tweet_dict.get("user_name", "unknown")}.png'
-#     image.save(image_path)
-#     return image_path
-
-# # Example usage
-# tweet_example = {
-#     'text': 'This is an example tweet!',
-#     'user': {'profile_image_url': 'https://example.com/user_icon.png'},
-#     'like_count': 10,
-#     'reply_count': 5
-# }
-
-# image_path = create_tweet_image(tweet_example)
-
+top_tweets_df = pd.read_csv('top_tweets.csv')
+user_df = pd.read_csv('top_tweeters.csv')
 
 # Add Streamlit interface
 def main():    
     try:
         # Sidebar for navigation
-        page = st.sidebar.selectbox("Select a page", ["Home", "Daily Perspective", "Hot Tweets", "Influencers", "The Master Debater"])
+        page = st.sidebar.selectbox("Select a page", ["Home", "Daily Perspective", "Hot Tweets", "Influencers", "The Master Debater", "Direct Bot Control"])
         
         logging.info(f"Selected page: {page}")
         
@@ -353,13 +327,10 @@ def main():
                                 st.image("https://via.placeholder.com/40", width=40)
                         with col_text:
                             st.write(f"{row['user_name']}")
-                            st.write(f"{row['user_username']}")
                         st.write(row['text'])
                         st.write(f"Likes: {row['like_count']},  Replies: {row['reply_count']}")
 
                         st.markdown("---")  # Add a horizontal line
-
-
 
                 with col2:
                     st.write(f"AGAINST")
@@ -379,8 +350,6 @@ def main():
 
                         st.markdown("---")  # Add a horizontal line
 
-
-
         elif page == "Hot Tweets":
             st.title("Hot Tweets")
             st.write("Enter a query to fetch tweets related to cryptocurrency.")
@@ -389,32 +358,61 @@ def main():
                 st.write("Top Tweets:")
                 st.dataframe(top_tweets_df)
         elif page == "Influencers":
+            user_df = pd.read_csv('top_tweeters.csv')
             st.title("Influencers")
-            st.write("Enter a query to fetch influencers related to cryptocurrency.")
-            query = st.text_input("Query", "Bitcoin")
-            if st.button("Fetch Influencers"):
-                st.write("Top Influencers:")
-                st.dataframe(user_df)
+            st.write("Top Influencers:")
+            st.dataframe(user_df.sort_values(by='top_tweet_count', ascending=False)[['user_name', 'top_tweet_count']])
         elif page == "The Master Debater":
             st.title("The Master Debater")
             st.write("Set a bot up to weigh in on a crypto topic")
             query = st.selectbox("Choose a target category", ["Topic", "Influencer"])
             if query == "Topic":
-                topic = st.text_input("Enter a topic")
-                if st.button("Activate Debate Bot"):
-                    st.write("Debate bot activated successfully!")
-                    st.write("The bot will now send 10 tweets about this Topic over the next 24 hours..")
+                viewpoint = st.text_input("Enter a viewpoint")
+                style = st.text_input("Enter a style")
+                spiciness = st.slider("Select Spiciness Level", min_value=1, max_value=10, value=5, step=1)
+                if st.button("Generate Tweet"):
+                    context = f"""
+                    Create a tweet that is in the style '{style}' about the topic provided, with a spiciness level of {spiciness}.
+                    The shorter the better. You must keep it to less than 4 sentences. Include only the text of the tweet.
+                    """
+                    new_tweet = default_query(context, viewpoint)
+                    st.write("Proposed Tweet:")
+                    st.write(f"{new_tweet}")
+                    if st.button("Post Tweet"):
+                        upload_tweet(new_tweet)
             elif query == "Influencer":
-                influencer = st.text_input("Enter an influencer")
-                if st.button("Activate Debate Bot"):
-                    st.write("Debate bot activated successfully!")
-                    st.write("The bot will now send 10 tweets about this Influencer over the next 24 hours..")
+                user_df = pd.read_csv('top_tweeters.csv')
+
+                influencer = st.selectbox("Choose an influencer", user_df['user_name'].sort_values(by='top_tweet_count', ascending=False).tolist())
+                inf_tweet = st.selectbox("Choose a tweet", user_df[user_df['user_name'] == influencer]['text'].tolist())
+                viewpoint = st.text_input("Enter a viewpoint")
+                style = st.text_input("Enter a style")
+                spiciness = st.slider("Select Spiciness Level", min_value=1, max_value=10, value=5, step=1)
+                if st.button("Generate Tweet"):
+                    context = f"""
+                    Create a tweet that is in the style '{style}', with a spiciness level of {spiciness}.
+                    This tweet must be in reply to {influencer}, who recently tweeted the text provided.
+                    The shorter the better. You must keep it to less than 4 sentences. Include only the text of the tweet.
+                    """
+                    new_tweet = default_query(context, viewpoint)
+                    st.write("Proposed Tweet:")
+                    st.write(f"{new_tweet}")
+                    if st.button("Post Tweet"):
+                        upload_tweet(new_tweet)
+
+        elif page == "Direct Bot Control":
+            st.title("Direct Bot Control")
+            st.write("Send a tweet directly via the bot")
+            tweet_text = st.text_input("Enter a tweet")
+            if st.button("Send Tweet"):
+                upload_tweet(tweet_text)
 
     except Exception as e:
         logging.error(f"Error in main function: {str(e)}")
         st.error(f"An error occurred: {str(e)}")
         # Print full traceback
         import traceback
+
         logging.error(traceback.format_exc())
 
 # Run the Streamlit app
