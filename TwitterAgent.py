@@ -302,11 +302,10 @@ def main():
                 query = default_query(context, user_input)
                 tweets_list = get_tweets(query, "Top", (datetime.now() + timedelta(days=-1)).strftime("%Y-%m-%d"), (datetime.now() + timedelta(days=0)).strftime("%Y-%m-%d"))
                 tweets_df = pd.DataFrame(tweets_list)
-                # print(tweets_df.columns)
-                # print(tweets_df.iloc[0])
+                print(f"Tweets fetched: {len(tweets_df)}")
                 tweets_df = analyse_tweets_df(tweets_df)
                 tweets_df = tweets_df.iloc[:10]
-                print(f"Tweets fetched: {len(tweets_df)}")
+
                 # Classify whether each tweet is FOR or AGAINST the query.
                 output_list = []
                 for tweet_text in tweets_df['text']:
