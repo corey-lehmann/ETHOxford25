@@ -83,6 +83,81 @@
     <li>Aggregate results and return a sorted DataFrame with user credibility scores.</li>
 </ol>
 
+<h3>Example Usage</h3>
+
+<h4>Code:</h4>
+<pre><code>top_users = pd.DataFrame({
+    'username': ['crypto_expert', 'trader_jane', 'bitcoin_guru']
+})
+
+tweets = pd.DataFrame({
+    'username': ['crypto_expert', 'trader_jane', 'bitcoin_guru', 'other_user'],
+    'date': ['2024-11-11', '2024-11-11', '2024-11-11', '2024-11-11'],
+    'sentiment': [
+        {'bitcoin': 8, 'ethereum': 7},
+        {'bitcoin': 3, 'ethereum': 4},
+        {'bitcoin': 9, 'dogecoin': 8},
+        {'ethereum': 5, 'dogecoin': 6}
+    ]
+})
+
+'''
+This would load data from our API data analytics
+top_users = pd.read_csv('top_tweeters.csv')
+tweets = pd.read_csv('top_tweets.csv')
+'''
+
+results = analyze_top_users_credibility(top_users, tweets)
+print(results)</code></pre>
+
+<h4>Output:</h4>
+<table>
+    <thead>
+        <tr>
+            <th>Username</th>
+            <th>Average Credibility</th>
+            <th>Num Tweets</th>
+            <th>Predictions Analyzed</th>
+            <th>Recent Predictions</th>
+            <th>Best Prediction</th>
+            <th>Worst Prediction</th>
+            <th>Prediction Stddev</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>bitcoin_guru</td>
+            <td>0.345</td>
+            <td>1</td>
+            <td>2</td>
+            <td>0</td>
+            <td>0.418</td>
+            <td>0.272</td>
+            <td>0.103</td>
+        </tr>
+        <tr>
+            <td>crypto_expert</td>
+            <td>0.087</td>
+            <td>1</td>
+            <td>2</td>
+            <td>0</td>
+            <td>0.204</td>
+            <td>-0.029</td>
+            <td>0.165</td>
+        </tr>
+        <tr>
+            <td>trader_jane</td>
+            <td>-0.061</td>
+            <td>1</td>
+            <td>2</td>
+            <td>0</td>
+            <td>0.014</td>
+            <td>-0.136</td>
+            <td>0.106</td>
+        </tr>
+    </tbody>
+</table>
+
 <h2>Twitter Bot Control</h2>
 
 <p>This script demonstrates how to post a tweet using the Twitter API v2. It sends a simple "Hello World!" message to Twitter.</p>
