@@ -2,6 +2,8 @@
 
 <p>This project is designed to fetch, analyze, and interact with tweets related to cryptocurrency. It provides insights into market sentiment, evaluates user credibility, and allows for direct interaction via a Twitter bot.</p>
 
+<p>Access the Streamlit app to try it for yourself: <a href="https://okc-ethoxford25.streamlit.app/" target="_blank">Crypto Twitter Analysis and Bot</a></p>
+
 <h2>Overview</h2>
 
 <p>The application consists of several components:</p>
@@ -194,7 +196,3 @@ print(response.text)
     <li>Run the Streamlit application to interact with the data and bot functionalities.</li>
     <li>Use the provided functions to fetch and analyze tweets, evaluate user credibility, and post tweets via the bot.</li>
 </ol>
-
-<h2>Contact</h2>
-
-<p>For questions or support, please contact <a href="mailto:yourname@example.com">yourname@example.com</a>.</p>
