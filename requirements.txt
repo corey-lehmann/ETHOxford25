@@ -1,0 +1,8 @@
+python-dotenv
+openai
+pandas
+numpy
+requests
+tqdm
+streamlit 
+toml 
